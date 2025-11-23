@@ -5,7 +5,7 @@ RSpec.describe User, type: :model do
     subject { described_class.new.attributes.keys }
 
     let(:expected_attributes) do
-      %w(id email type created_at updated_at)
+      %w[id email type created_at updated_at]
     end
 
     it { is_expected.to eql(expected_attributes) }

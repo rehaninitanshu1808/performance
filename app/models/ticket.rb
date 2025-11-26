@@ -8,5 +8,5 @@ class Ticket < ApplicationRecord
     foreign_key: "customer_support_id",
     optional: true
 
-  validates :status, :description, :customer, presence: true
+  validates :status, :subject, :description, :customer, presence: true
 end

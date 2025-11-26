@@ -9,7 +9,7 @@ class Api::V1::TicketsController < ApplicationController
       tickets: ActiveModelSerializers::SerializableResource.new(
         tickets,
         each_serializer: TicketSerializer,
-        include: ["customer_support", "customer"]
+        include: [ "customer_support", "customer" ]
       ),
       pagination: page_details
     }
@@ -20,9 +20,10 @@ class Api::V1::TicketsController < ApplicationController
     @ticket = customer.submitted_tickets.build(ticket_params)
 
     if @ticket.save
-       render json: @ticket, serializer: TicketSerializer, status: :created
+      NotifyCustomerJob.perform_async(@ticket.id)
+      render json: @ticket, serializer: TicketSerializer, status: :created
     else
-      render json: { errors: ticket.errors.full_messages }, status: :unprocessable_entity
+      render json: { errors: @ticket.errors.full_messages }, status: :unprocessable_entity
     end
   end
 
@@ -35,5 +36,8 @@ class Api::V1::TicketsController < ApplicationController
   def customer
     @customer = Customer.find_by!(id: ticket_params[:customer_id])
   end
+
+  def ticket
+    @ticket = Ticket.find_by!(id: params[:id])
+  end
 end
-  

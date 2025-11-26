@@ -2,19 +2,17 @@ class Api::V1::TicketsController < ApplicationController
   include Pagination
 
   def index
-    tickets = Ticket.offset(offset).limit(per_page).includes(:customer, :customer_support)
-    @total_count = tickets.count
+    data = FetchTickets.new(per_page, offset).call
+    @total_count = data[:total_count]
 
     render json: {
       tickets: ActiveModelSerializers::SerializableResource.new(
-        tickets,
-        each_serializer: TicketSerializer,
-        include: [ "customer_support", "customer" ]
+        data[:tickets],
+        each_serializer: TicketSerializer
       ),
       pagination: page_details
     }
   end
-
 
   def create
     @ticket = customer.submitted_tickets.build(ticket_params)
@@ -23,8 +21,20 @@ class Api::V1::TicketsController < ApplicationController
       NotifyCustomerJob.perform_async(@ticket.id)
       render json: @ticket, serializer: TicketSerializer, status: :created
     else
-      render json: { errors: @ticket.errors.full_messages }, status: :unprocessable_entity
+      render_error
     end
+  end
+
+  def update
+    if ticket.update(ticket_params)
+      render json: @ticket, serializer: TicketSerializer, status: :ok
+    else
+      render_error
+    end
+  end
+
+  def destroy
+    head :no_content if ticket.destroy!
   end
 
   private
@@ -39,5 +49,9 @@ class Api::V1::TicketsController < ApplicationController
 
   def ticket
     @ticket = Ticket.find_by!(id: params[:id])
+  end
+
+  def render_error
+    render json: { errors: @ticket.errors.full_messages }, status: :unprocessable_content
   end
 end

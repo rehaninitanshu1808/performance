@@ -26,6 +26,16 @@ RSpec.describe "Api::V1::Tickets", type: :request do
         expect(json_response['pagination']['total_pages']).to eql(1)
       end
 
+      context "when cache is expired", :aggregate_failures do
+        it 'verifies the response' do
+          trigger_request
+
+          expect(response).to have_http_status(:ok)
+          travel 6.minutes
+          expect(Rails.cache.read("all_tickets")).to be_nil
+        end
+      end
+
       context "when request tickets on second page" do
         let(:page) { 2 }
 
@@ -84,8 +94,7 @@ RSpec.describe "Api::V1::Tickets", type: :request do
     end
 
     let(:customer_support_id) { nil }
-
-    let(:subject) { 'Test' }
+    let(:subject) { 'subject' }
 
     let(:ticket_params) do
       {
@@ -112,8 +121,6 @@ RSpec.describe "Api::V1::Tickets", type: :request do
       end
     end
 
-
-
     context "when params are not valid" do
       context "when customer id is not valid" do
         let(:customer_id) { 'x' }
@@ -124,7 +131,62 @@ RSpec.describe "Api::V1::Tickets", type: :request do
       context "when subject is not present" do
         let(:subject) { nil }
 
-        include_examples "should not create a ticket with invalid params", :unprocessable_entity
+        include_examples "should not create a ticket with invalid params", :unprocessable_content
+      end
+    end
+  end
+
+  describe 'PUT /update' do
+    subject(:trigger_request) do
+      put "/api/v1/tickets/#{ticket_id}", params: ticket_params
+    end
+
+    let(:customer_support_id) { create(:customer_support).id }
+
+    let(:ticket_params) do
+      {
+        "ticket" => {
+          customer_support_id:
+        }
+      }
+    end
+
+    context "when ticket_id is not valid" do
+      let(:ticket_id) { 'x' }
+
+      it 'returns not found error', :aggregate_failures do
+        trigger_request
+
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    context "when params are valid" do
+      let(:ticket) { create(:ticket) }
+      let(:ticket_id) { ticket.id }
+
+      it 'updates the ticket', :aggregate_failures do
+        trigger_request
+
+        expect(ticket.reload.customer_support_id).to eql(customer_support_id)
+        expect(response).to have_http_status(:ok)
+      end
+    end
+  end
+
+  describe 'DELETE /destroy' do
+    let(:ticket) { create(:ticket) }
+    let(:ticket_id) { ticket.id }
+
+    subject(:trigger_request) do
+      delete "/api/v1/tickets/#{ticket_id}"
+    end
+
+    context "when ticket id is valid" do
+      it "destroys the record", :aggregate_failures do
+        trigger_request
+
+        expect(response).to have_http_status(:no_content)
       end
     end
   end

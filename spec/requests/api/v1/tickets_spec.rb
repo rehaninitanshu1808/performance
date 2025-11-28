@@ -1,5 +1,4 @@
 require 'rails_helper'
-require 'sidekiq/testing'
 
 RSpec.describe "Api::V1::Tickets", type: :request do
   describe "GET /index" do

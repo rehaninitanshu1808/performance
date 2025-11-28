@@ -68,8 +68,11 @@ group :test do
   gem "capybara"
   gem "selenium-webdriver"
   gem "shoulda-matchers", "~> 6.0"
+  gem 'simplecov', require: false
+  gem 'rspec-sqlimit'
 end
 
 gem "active_model_serializers", "~> 0.10.0"
 gem "redis"
 gem "sidekiq"
+gem 'jwt'

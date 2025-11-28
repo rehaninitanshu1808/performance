@@ -2,7 +2,7 @@ class Api::V1::TicketsController < ApplicationController
   include Pagination
 
   def index
-    data = FetchTickets.new(per_page, offset).call
+    data = Tickets::List.new(per_page, offset).call
     @total_count = data[:total_count]
 
     render json: {
@@ -15,21 +15,26 @@ class Api::V1::TicketsController < ApplicationController
   end
 
   def create
-    @ticket = customer.submitted_tickets.build(ticket_params)
+    result = Tickets::Create.new(ticket_params.to_h).call
 
-    if @ticket.save
-      NotifyCustomerJob.perform_async(@ticket.id)
-      render json: @ticket, serializer: TicketSerializer, status: :created
+    if result.ticket.nil?
+      render_error(status: :not_found)
+    elsif result.errors.present?
+      render_error(errors: result.errors)
     else
-      render_error
+      render json: result.ticket, serializer: TicketSerializer, status: :created
     end
   end
 
   def update
-    if ticket.update(ticket_params)
-      render json: @ticket, serializer: TicketSerializer, status: :ok
+    result = Tickets::Update.new(params[:id], ticket_params.to_h).call
+
+    if result.ticket.nil?
+      render_error(status: :not_found)
+    elsif result.errors.present?
+      render_error(errors: result.errors)
     else
-      render_error
+      render json: result.ticket, serializer: TicketSerializer, status: :ok
     end
   end
 
@@ -43,15 +48,11 @@ class Api::V1::TicketsController < ApplicationController
     params.require(:ticket).permit(:subject, :description, :customer_id, :customer_support_id)
   end
 
-  def customer
-    @customer = Customer.find_by!(id: ticket_params[:customer_id])
-  end
-
   def ticket
     @ticket = Ticket.find_by!(id: params[:id])
   end
 
-  def render_error
-    render json: { errors: @ticket.errors.full_messages }, status: :unprocessable_content
+  def render_error(errors: [], status: :unprocessable_content)
+    render json: { errors: errors }, status: status
   end
 end
